@@ -1,0 +1,105 @@
+# Import necessary libraries
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_digits
+from sklearn.model_selection import train_test_split
+from sklearn.decomposition import PCA
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import accuracy_score
+
+# Step 1: Data Preparation
+def load_digits_dataset():
+    # Load digits dataset
+    digits = load_digits()
+    X, y = digits.data, digits.target
+    return X, y
+
+def display_images(images, labels, num_images=5):
+    fig, axes = plt.subplots(1, num_images, figsize=(10, 2))
+    for i in range(num_images):
+        axes[i].imshow(images[i].reshape(8, 8), cmap='gray')
+        axes[i].set_title(labels[i])
+        axes[i].axis('off')
+    plt.show()
+
+# Step 2: Sampling Subsets
+def sample_subsets(X_train, y_train, sizes):
+    subsets = {}
+    for size in sizes:
+        num_samples = int(size * len(X_train))
+        indices = np.random.choice(len(X_train), num_samples, replace=False)
+        subsets[size] = (X_train[indices], y_train[indices])
+    return subsets
+
+from sklearn.preprocessing import StandardScaler
+
+# Step 3: Classifier Training
+def train_classifier(X_train, y_train):
+    # Data Preprocessing: Standard Scaling
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    
+    # Apply PCA for dimensionality reduction
+    pca = PCA()  # Default behavior will keep all components
+    X_train_pca = pca.fit_transform(X_train_scaled)
+    
+    # Train k-Nearest Neighbors classifier with 1 neighbor
+    clf = KNeighborsClassifier(n_neighbors=1)  # Use 1 neighbor
+    clf.fit(X_train_pca, y_train)
+    return clf, pca  # Return both classifier and pca object
+
+
+# Step 4: Scoring
+def score_classifier(classifier, pca, X_test, y_test):
+    # Transform test data using PCA
+    X_test_pca = pca.transform(X_test)
+
+    # Predict labels
+    y_pred = classifier.predict(X_test_pca)
+
+    # Calculate accuracy
+    accuracy = accuracy_score(y_test, y_pred)
+    return accuracy
+
+
+
+# Step 5: Plotting
+def plot_accuracy_vs_size(accuracy_dict):
+    sizes = list(accuracy_dict.keys())
+    accuracies = [accuracy_dict[size] for size in sizes]
+
+    plt.plot(sizes, accuracies, marker='o')
+    plt.xlabel('Training Set Size')
+    plt.ylabel('Test Accuracy')
+    plt.title('Effect of Training Set Size on Classification Performance')
+    plt.grid(True)
+    plt.show()
+
+# Main function
+def main(sizes):
+    # Load the dataset
+    X, y = load_digits_dataset()
+
+    # Display a few example images
+    display_images(X, y)
+
+    # Split dataset into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Train classifiers on subsets of different sizes and record accuracy
+    accuracy_dict = {}
+    for size in sizes:
+        subsets = sample_subsets(X_train, y_train, [size])
+        X_subset, y_subset = subsets[size]
+        classifier, pca = train_classifier(X_subset, y_subset)  # Unpack pca object
+        accuracy = score_classifier(classifier, pca, X_test, y_test)  # Pass pca object and y_test
+        accuracy_dict[size] = accuracy
+
+    # Plot accuracy vs. training set size
+    plot_accuracy_vs_size(accuracy_dict)
+
+# Run the main function
+if __name__ == "__main__":
+    # Define subset sizes to sample
+    sizes = np.linspace(0.001, 0.1, 10)  # 0.1% to 10%
+    main(sizes)
